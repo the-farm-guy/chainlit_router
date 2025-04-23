@@ -1,5 +1,9 @@
 from pydantic import BaseModel
 from typing import Optional
+    
+class UserUpdateModel(BaseModel):
+    username: Optional[str] = None
+    description: Optional[str] = None
 
 class UserBase(BaseModel):
     username: str

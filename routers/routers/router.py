@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database.model import User
 from database.database import get_db
-from database.schema import UserResponse, UserBase, UserCreate
+from database.schema import UserResponse, UserCreate, UserUpdateModel
 
 router = APIRouter(
     prefix="/api/v1",
@@ -21,6 +21,32 @@ async def get_user(username : str, db : Session = Depends(get_db)):
     if user is None:
         raise HTTPException(status_code = 404, details = 'user not found')
     return user
+
+@router.patch("/user/{username}", response_model=UserResponse)
+async def update_user(
+    username: str,
+    user_update: UserUpdateModel,
+    db: Session = Depends(get_db)
+):
+    user = db.query(User).filter(User.username == username).first()
+
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user_update.username and user_update.username != username:
+        existing = db.query(User).filter(User.username == user_update.username).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Username already exists")
+
+    user_data = user_update.model_dump(exclude_unset=True)
+    for key, value in user_data.items():
+        setattr(user, key, value)
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return user
     
 @router.post('/user', response_model = UserResponse)
 async def create_user(data : UserCreate, db : Session = Depends(get_db)):
@@ -35,3 +61,15 @@ async def create_user(data : UserCreate, db : Session = Depends(get_db)):
         db.commit()
         db.refresh(new_user)
         return new_user
+    
+@router.delete('/user', response_model = UserResponse)
+async def delete_user(username : str, db : Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == username).first()
+    
+    if user is None:
+        raise HTTPException(status_code = 404, detail = 'user not found')
+    
+    else:
+        db.delete(user)
+        db.commit()
+        return user

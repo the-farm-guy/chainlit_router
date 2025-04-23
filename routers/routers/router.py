@@ -73,3 +73,21 @@ async def delete_user(username : str, db : Session = Depends(get_db)):
         db.delete(user)
         db.commit()
         return user
+    
+@router.put("/users/{username}", response_model = UserResponse)
+async def put_user(username : str, username_in : UserCreate, db : Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == username).first()
+    
+    if user:
+        user.description = username_in.description
+        user.username = username_in.username  
+        db.commit()
+        db.refresh(user)
+        return user
+    
+    else:
+        new_user = User(username=username, description=username_in.description)
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        return new_user
